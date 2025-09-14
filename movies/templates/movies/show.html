@@ -36,20 +36,64 @@
         </p>
                 <h2>Reviews</h2>
                 <hr />
+                
+                <!-- Sorting Bar -->
+                <div class="mb-3">
+                    <div class="btn-group" role="group" aria-label="Sort reviews">
+                        <a href="?sort=date" class="btn btn-outline-secondary {% if template_data.sort_by == 'date' %}active{% endif %}">
+                            Sort by Date
+                        </a>
+                        <a href="?sort=user" class="btn btn-outline-secondary {% if template_data.sort_by == 'user' %}active{% endif %}">
+                            Sort by User
+                        </a>
+                    </div>
+                </div>
                 <ul class="list-group">
                     {% for review in template_data.reviews %}
                     <li class="list-group-item pb-3 pt-3">
-                        <h5 class="card-title">Review by {{ review.user.username }}</h5>
-                        <h6 class="card-subtitle mb-2 text-muted">{{ review.date }}</h6>
-                        <p class="card-text">{{ review.comment }}</p>
-                        {% if user.is_authenticated and user == review.user %}
-                        <a class="btn btn-primary" href="{% url 'movies.edit_review' id=template_data.movie.id review_id=review.id %}">
-                            Edit
-                        </a>
-                        <a class="btn btn-danger" href="{% url 'movies.delete_review' id=template_data.movie.id review_id=review.id %}">
-                            Delete
-                        </a>
-                        {% endif %}
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title">Review by {{ review.user.username }}</h5>
+                                <h6 class="card-subtitle mb-2 text-muted">{{ review.date }}</h6>
+                                <p class="card-text">{{ review.comment }}</p>
+                            </div>
+                            <div class="d-flex flex-column align-items-end">
+                                <!-- Like Button -->
+                                {% if user.is_authenticated %}
+                                    {% if review.id in template_data.user_likes %}
+                                        <button class="btn btn-outline-danger btn-sm like-btn mb-2" 
+                                                data-review-id="{{ review.id }}" 
+                                                data-liked="true"
+                                                data-movie-id="{{ template_data.movie.id }}">
+                                            <i class="fas fa-heart"></i> <span class="like-count">{{ review.like_count }}</span>
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-outline-secondary btn-sm like-btn mb-2" 
+                                                data-review-id="{{ review.id }}" 
+                                                data-liked="false"
+                                                data-movie-id="{{ template_data.movie.id }}">
+                                            <i class="far fa-heart"></i> <span class="like-count">{{ review.like_count }}</span>
+                                        </button>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="badge bg-secondary mb-2">
+                                        <i class="fas fa-heart"></i> {{ review.like_count }}
+                                    </span>
+                                {% endif %}
+                                
+                                <!-- Edit/Delete buttons for review owner -->
+                                {% if user.is_authenticated and user == review.user %}
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-primary" href="{% url 'movies.edit_review' id=template_data.movie.id review_id=review.id %}">
+                                        Edit
+                                    </a>
+                                    <a class="btn btn-danger" href="{% url 'movies.delete_review' id=template_data.movie.id review_id=review.id %}">
+                                        Delete
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
@@ -86,3 +130,51 @@
     </div>
 </div>
 {% endblock content %}
+
+{% block extra_js %}
+{% csrf_token %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle like button clicks
+    document.querySelectorAll('.like-btn').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const reviewId = this.dataset.reviewId;
+            const movieId = this.dataset.movieId;
+            const isLiked = this.dataset.liked === 'true';
+            const likeCountSpan = this.querySelector('.like-count');
+            
+            // Determine the URL based on current like status
+            const url = isLiked ? 
+                `/movies/${movieId}/review/${reviewId}/unlike/` : 
+                `/movies/${movieId}/review/${reviewId}/like/`;
+            
+            // Send AJAX request
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Update button appearance
+                if (data.liked) {
+                    this.className = 'btn btn-outline-danger btn-sm like-btn mb-2';
+                    this.innerHTML = '<i class="fas fa-heart"></i> <span class="like-count">' + data.like_count + '</span>';
+                    this.dataset.liked = 'true';
+                } else {
+                    this.className = 'btn btn-outline-secondary btn-sm like-btn mb-2';
+                    this.innerHTML = '<i class="far fa-heart"></i> <span class="like-count">' + data.like_count + '</span>';
+                    this.dataset.liked = 'false';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the like. Please try again.');
+            });
+        });
+    });
+});
+</script>
+{% endblock extra_js %}

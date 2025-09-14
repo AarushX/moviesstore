@@ -19,5 +19,18 @@ class Review(models.Model):
         on_delete=models.CASCADE)
     user = models.ForeignKey(User,
         on_delete=models.CASCADE)
+    like_count = models.PositiveIntegerField(default=0)
+    
     def __str__(self):
         return str(self.id) + ' - ' + self.movie.name
+
+class ReviewLike(models.Model):
+    review = models.ForeignKey(Review, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('review', 'user')
+    
+    def __str__(self):
+        return f"{self.user.username} likes review {self.review.id}"

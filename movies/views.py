@@ -1,6 +1,8 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Movie, Review
+from .models import Movie, Review, ReviewLike
 from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 # Create your views here.
 
 
@@ -18,11 +20,33 @@ def index(request):
 
 def show(request, id):
     movie = Movie.objects.get(id=id)
-    reviews = Review.objects.filter(movie=movie)
+    
+    # Get sorting parameter
+    sort_by = request.GET.get('sort', 'date')  # Default to date
+    
+    # Get reviews with like counts
+    reviews = Review.objects.filter(movie=movie).select_related('user')
+    
+    # Apply sorting
+    if sort_by == 'user':
+        reviews = reviews.order_by('user__username')
+    else:  # Default to date
+        reviews = reviews.order_by('-date')
+    
+    # Get user's likes for this movie's reviews
+    user_likes = set()
+    if request.user.is_authenticated:
+        user_likes = set(ReviewLike.objects.filter(
+            review__in=reviews, 
+            user=request.user
+        ).values_list('review_id', flat=True))
+    
     template_data = {}
     template_data['title'] = movie.name
     template_data['movie'] = movie
     template_data['reviews'] = reviews
+    template_data['user_likes'] = user_likes
+    template_data['sort_by'] = sort_by
     return render(request, 'movies/show.html',
                   {'template_data': template_data})
 
@@ -64,3 +88,34 @@ def delete_review(request, id, review_id):
         user=request.user)
     review.delete()
     return redirect('movies.show', id=id)
+
+@login_required
+@require_POST
+def like_review(request, id, review_id):
+    review = get_object_or_404(Review, id=review_id)
+    like, created = ReviewLike.objects.get_or_create(
+        review=review, 
+        user=request.user
+    )
+    
+    if created:
+        # Update like count
+        review.like_count += 1
+        review.save()
+        return JsonResponse({'liked': True, 'like_count': review.like_count})
+    else:
+        return JsonResponse({'liked': False, 'like_count': review.like_count})
+
+@login_required
+@require_POST
+def unlike_review(request, id, review_id):
+    review = get_object_or_404(Review, id=review_id)
+    try:
+        like = ReviewLike.objects.get(review=review, user=request.user)
+        like.delete()
+        # Update like count
+        review.like_count = max(0, review.like_count - 1)
+        review.save()
+        return JsonResponse({'liked': False, 'like_count': review.like_count})
+    except ReviewLike.DoesNotExist:
+        return JsonResponse({'liked': False, 'like_count': review.like_count})
