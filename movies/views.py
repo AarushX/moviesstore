@@ -3,6 +3,7 @@ from .models import Movie, Review, ReviewLike
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.contrib import messages
 # Create your views here.
 
 
@@ -24,8 +25,8 @@ def show(request, id):
     # Get sorting parameter
     sort_by = request.GET.get('sort', 'date')  # Default to date
     
-    # Get reviews with like counts
-    reviews = Review.objects.filter(movie=movie).select_related('user')
+    # Get non-hidden reviews with like counts
+    reviews = Review.objects.filter(movie=movie, is_hidden=False).select_related('user')
     
     # Apply sorting
     if sort_by == 'user':
@@ -87,6 +88,16 @@ def delete_review(request, id, review_id):
     review = get_object_or_404(Review, id=review_id,
         user=request.user)
     review.delete()
+    return redirect('movies.show', id=id)
+
+@login_required
+@require_POST
+def report_review(request, id, review_id):
+    review = get_object_or_404(Review, id=review_id, movie_id=id)
+    # Anyone authenticated can report; hide it immediately
+    review.is_hidden = True
+    review.save(update_fields=['is_hidden'])
+    messages.success(request, 'Thanks for reporting. The review has been hidden and will be reviewed by admins.')
     return redirect('movies.show', id=id)
 
 @login_required

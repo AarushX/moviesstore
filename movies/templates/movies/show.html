@@ -81,6 +81,14 @@
                                     </span>
                                 {% endif %}
                                 
+                                <!-- Report button for anyone authenticated -->
+                                {% if user.is_authenticated %}
+                                <form method="post" action="{% url 'movies.report_review' id=template_data.movie.id review_id=review.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-warning btn-sm mb-2">Report</button>
+                                </form>
+                                {% endif %}
+
                                 <!-- Edit/Delete buttons for review owner -->
                                 {% if user.is_authenticated and user == review.user %}
                                 <div class="btn-group btn-group-sm">
