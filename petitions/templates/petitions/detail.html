@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h2 class="mb-0">{{ petition.title }}</h2>
+      <small class="text-muted">Movie: {{ petition.requested_movie_title }} · by {{ petition.created_by.username }} · {{ petition.created_at|date:'Y-m-d H:i' }}</small>
+    </div>
+    <span class="badge bg-success fs-6">Yes {{ petition.yes_count }}</span>
+  </div>
+  <hr/>
+  <p>{{ petition.description|linebreaks }}</p>
+
+  {% if user.is_authenticated %}
+    {% if has_voted %}
+      <div class="alert alert-info">You already voted yes on this petition.</div>
+    {% else %}
+      <form method="post" action="{% url 'petitions:vote_yes' petition.pk %}">
+        {% csrf_token %}
+        <button class="btn btn-success" type="submit">Vote Yes</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <a class="btn btn-outline-primary" href="{% url 'accounts.login' %}?next={{ request.path }}">Login to vote</a>
+  {% endif %}
+
+  <div class="mt-3">
+    <a class="btn btn-link" href="{% url 'petitions:index' %}">Back to list</a>
+  </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container py-4">
+  <h2>Create Petition</h2>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.title.label_tag }}{{ form.title }}</div>
+    <div class="mb-3">{{ form.requested_movie_title.label_tag }}{{ form.requested_movie_title }}</div>
+    <div class="mb-3">{{ form.description.label_tag }}{{ form.description }}</div>
+    <button class="btn btn-primary" type="submit">Create</button>
+    <a class="btn btn-link" href="{% url 'petitions:index' %}">Cancel</a>
+  </form>
+  </div>
+{% endblock %}
+
